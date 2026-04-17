@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RG POS System</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      fontFamily: { sans: ['Plus Jakarta Sans', 'sans-serif'] },
+      colors: {
+        brand: { 50:'#eff6ff',100:'#dbeafe',200:'#bfdbfe',300:'#93c5fd',400:'#60a5fa',500:'#3b82f6',600:'#2563eb',700:'#1d4ed8',800:'#1e40af',900:'#1e3a5f' },
+        surface: { 50:'#f8fafc',100:'#f1f5f9',200:'#e2e8f0',700:'#1e293b',800:'#111827',850:'#0d1320',900:'#0a0e1a',950:'#060810' }
+      }
+    }
+  }
+}
+</script>
+<style>
+  *{scrollbar-width:thin;scrollbar-color:#2563eb33 transparent}
+  ::-webkit-scrollbar{width:6px;height:6px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:#2563eb33;border-radius:3px}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  @keyframes float1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(30px,-20px) scale(1.1)}}
+  @keyframes float2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-20px,30px) scale(0.9)}}
+  @keyframes toastIn{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}
+  @keyframes toastOut{from{transform:translateX(0);opacity:1}to{transform:translateX(120%);opacity:0}}
+  @keyframes counterUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes shakeX{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+  @keyframes pulseGlow{0%,100%{box-shadow:0 0 0 0 rgba(37,99,235,0.2)}50%{box-shadow:0 0 20px 4px rgba(37,99,235,0.1)}}
+  .anim-fade-up{animation:fadeUp .5s ease forwards}
+  .anim-fade-in{animation:fadeIn .4s ease forwards}
+  .anim-counter{animation:counterUp .6s ease forwards}
+  .anim-shake{animation:shakeX .4s ease}
+  .stagger-1{animation-delay:.05s;opacity:0}
+  .stagger-2{animation-delay:.1s;opacity:0}
+  .stagger-3{animation-delay:.15s;opacity:0}
+  .stagger-4{animation-delay:.2s;opacity:0}
+  .stagger-5{animation-delay:.25s;opacity:0}
+  .bg-orb-1{animation:float1 8s ease-in-out infinite}
+  .bg-orb-2{animation:float2 10s ease-in-out infinite}
+  .toast-enter{animation:toastIn .4s ease forwards}
+  .toast-exit{animation:toastOut .3s ease forwards}
+  .nav-item{position:relative;transition:all .2s ease}
+  .nav-item::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:0;background:#2563eb;border-radius:0 2px 2px 0;transition:height .2s ease}
+  .nav-item.active::before{height:60%}
+  .nav-item.active{background:rgba(37,99,235,.1);color:#60a5fa}
+  .table-row{transition:background .15s ease}
+  .table-row:hover{background:rgba(37,99,235,.04)}
+  .dark .table-row:hover{background:rgba(37,99,235,.08)}
+  .stat-card{transition:transform .2s ease,box-shadow .2s ease}
+  .stat-card:hover{transform:translateY(-3px);box-shadow:0 12px 40px -12px rgba(0,0,0,.25)}
+  input:focus,select:focus,textarea:focus{outline:none;box-shadow:0 0 0 2px rgba(37,99,235,.3)}
+  .order-row{transition:all .15s ease;border-left:3px solid transparent}
+  .order-row:hover{background:rgba(37,99,235,.04);border-left-color:#2563eb}
+  .dark .order-row:hover{background:rgba(37,99,235,.06)}
+  .badge-completed{background:rgba(16,185,129,.1);color:#10b981}
+  .badge-pending{background:rgba(245,158,11,.1);color:#f59e0b}
+  .badge-cancelled{background:rgba(239,68,68,.1);color:#ef4444}
+  .chart-container{position:relative}
+  .sidebar-gradient{background:linear-gradient(180deg,#0f172a 0%,#0a0e1a 100%)}
+  @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body class="font-sans bg-surface-50 dark:bg-surface-900 text-slate-800 dark:text-slate-200 min-h-screen transition-colors duration-300">
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+  <div class="absolute inset-0 bg-gradient-to-br from-surface-900 via-brand-900 to-surface-950 overflow-hidden">
+    <div class="bg-orb-1 absolute top-1/4 left-1/4 w-96 h-96 bg-brand-600/10 rounded-full blur-3xl"></div>
+    <div class="bg-orb-2 absolute bottom-1/4 right-1/4 w-80 h-80 bg-cyan-500/10 rounded-full blur-3xl"></div>
+  </div>
+  <div class="relative w-full max-w-md anim-fade-up">
+    <div class="text-center mb-8">
+      <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 shadow-lg shadow-brand-500/25 mb-4"><i class="fas fa-bolt text-white text-2xl"></i></div>
+      <h1 class="text-3xl font-800 text-white tracking-tight">RG POS System</h1>
+      <p class="text-slate-400 mt-2 text-sm">Gmail Account Management Dashboard</p>
+    </div>
+    <div class="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
+      <h2 class="text-xl font-700 text-white mb-6">Sign In</h2>
+      <form id="loginForm" class="space-y-5">
+        <div>
+          <label class="block text-sm font-500 text-slate-300 mb-2">Username</label>
+          <div class="relative"><i class="fas fa-user absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i><input id="loginUser" type="text" placeholder="Enter username" autocomplete="username" class="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 text-sm transition-all focus:border-brand-500"></div>
+        </div>
+        <div>
+          <label class="block text-sm font-500 text-slate-300 mb-2">Password</label>
+          <div class="relative"><i class="fas fa-lock absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm"></i><input id="loginPass" type="password" placeholder="Enter password" autocomplete="current-password" class="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 text-sm transition-all focus:border-brand-500"></div>
+        </div>
+        <div id="loginError" class="hidden text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-2.5"><i class="fas fa-exclamation-circle mr-1.5"></i><span></span></div>
+        <button type="submit" class="w-full py-3 bg-gradient-to-r from-brand-600 to-brand-700 hover:from-brand-500 hover:to-brand-600 text-white font-600 rounded-xl transition-all shadow-lg shadow-brand-600/25 hover:shadow-brand-500/30 active:scale-[0.98]">Sign In</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="mainApp" class="hidden min-h-screen">
+  <div id="sidebarOverlay" class="fixed inset-0 bg-black/50 z-40 hidden md:hidden" onclick="toggleSidebar()"></div>
+
+  <!-- SIDEBAR -->
+  <aside id="sidebar" class="fixed left-0 top-0 bottom-0 w-[260px] sidebar-gradient border-r border-white/5 z-50 transform -translate-x-full md:translate-x-0 transition-transform duration-300 flex flex-col">
+    <div class="h-[72px] flex items-center gap-3 px-6 border-b border-white/5 shrink-0">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center shadow-lg shadow-brand-500/30"><i class="fas fa-bolt text-white text-lg"></i></div>
+      <div><span class="font-800 text-[17px] text-white tracking-tight">RG POS</span><span class="text-[10px] font-600 text-brand-400 ml-1.5 bg-brand-500/10 px-1.5 py-0.5 rounded">PRO</span></div>
+    </div>
+    <nav class="flex-1 py-5 px-3 space-y-1 overflow-y-auto">
+      <div class="px-3 pb-2 pt-1"><span class="text-[10px] font-700 uppercase tracking-widest text-slate-500">Main Menu</span></div>
+      <button onclick="navigateTo('dashboard')" data-nav="dashboard" class="nav-item active w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-500 text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-colors"><i class="fas fa-th-large w-5 text-center text-sm"></i> Dashboard</button>
+      <button onclick="navigateTo('pos')" data-nav="pos" class="nav-item w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-500 text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-colors"><i class="fas fa-cash-register w-5 text-center text-sm"></i> Point of Sale</button>
+      <button onclick="navigateTo('inventory')" data-nav="inventory" class="nav-item w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-500 text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-colors"><i class="fas fa-box-open w-5 text-center text-sm"></i> Inventory</button>
+      <button onclick="navigateTo('sold')" data-nav="sold" class="nav-item w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-500 text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-colors"><i class="fas fa-receipt w-5 text-center text-sm"></i> Sold Accounts</button>
+      <div class="px-3 pb-2 pt-4"><span class="text-[10px] font-700 uppercase tracking-widest text-slate-500">Insights</span></div>
+      <button onclick="navigateTo('analytics')" data-nav="analytics" class="nav-item w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-500 text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-colors"><i class="fas fa-chart-bar w-5 text-center text-sm"></i> Analytics</button>
+      <button onclick="navigateTo('transactions')" data-nav="transactions" class="nav-item w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-500 text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-colors"><i class="fas fa-history w-5 text-center text-sm"></i> Transactions</button>
+      <div class="px-3 pb-2 pt-4"><span class="text-[10px] font-700 uppercase tracking-widest text-slate-500">Quick Actions</span></div>
+      <button onclick="openAddModal()" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-500 text-brand-400 hover:bg-brand-500/10 transition-colors"><i class="fas fa-plus-circle w-5 text-center"></i> Add Account</button>
+    </nav>
+    <div class="p-3 border-t border-white/5 shrink-0 space-y-1">
+      <button onclick="toggleTheme()" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-500 text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-colors"><i id="themeIcon" class="fas fa-moon w-5 text-center text-sm"></i><span id="themeLabel">Dark Mode</span></button>
+      <button onclick="logout()" class="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-500 text-red-400 hover:bg-red-500/10 transition-colors"><i class="fas fa-sign-out-alt w-5 text-center text-sm"></i> Logout</button>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <div class="md:ml-[260px] min-h-screen flex flex-col">
+    <!-- HEADER -->
+    <header class="h-[72px] bg-white/80 dark:bg-surface-900/80 backdrop-blur-xl border-b border-slate-200/50 dark:border-white/5 flex items-center gap-4 px-6 sticky top-0 z-30 shrink-0">
+      <button onclick="toggleSidebar()" class="md:hidden w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-500 transition-colors"><i class="fas fa-bars"></i></button>
+      <div class="flex-1 max-w-lg relative">
+        <i class="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+        <input id="globalSearch" type="text" placeholder="Search accounts, buyers... (Ctrl+K)" oninput="handleGlobalSearch(this.value)" class="w-full pl-10 pr-4 py-2.5 bg-slate-100 dark:bg-white/5 border border-transparent dark:border-white/5 rounded-xl text-sm placeholder-slate-400 transition-all focus:bg-white dark:focus:bg-white/5 focus:border-brand-500/40">
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="showToast('No new notifications','info')" class="relative w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 transition-colors"><i class="fas fa-bell text-sm"></i><span id="notifBadge" class="hidden absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white dark:ring-surface-900"></span></button>
+        <button onclick="showToast('Settings coming soon','info')" class="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 transition-colors"><i class="fas fa-cog text-sm"></i></button>
+        <div class="hidden sm:flex items-center gap-3 ml-2 pl-4 border-l border-slate-200 dark:border-white/10">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center text-white text-xs font-700 shadow-md shadow-brand-500/20" id="headerAvatar">A</div>
+          <div class="leading-tight"><p class="text-sm font-600 text-slate-800 dark:text-white" id="headerName">Admin</p><p class="text-[11px] text-slate-400">Administrator</p></div>
+        </div>
+      </div>
+    </header>
+
+    <main class="flex-1 p-6">
+      <!-- ==================== DASHBOARD ==================== -->
+      <section id="dashboardView" class="anim-fade-in">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-7">
+          <div>
+            <h1 class="text-[26px] font-800 text-slate-900 dark:text-white tracking-tight">Dashboard</h1>
+            <p class="text-sm text-slate-500 mt-0.5">Welcome back, Admin. Here's your business overview.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <select id="dashPeriod" onchange="renderDashboard()" class="px-3 py-2 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm text-slate-600 dark:text-slate-300">
+              <option value="today">Today</option>
+              <option value="week" selected>This Week</option>
+              <option value="month">This Month</option>
+              <option value="all">All Time</option>
+            </select>
+            <button onclick="openAddModal()" class="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-sm font-600 transition-colors shadow-lg shadow-brand-600/20"><i class="fas fa-plus mr-1.5 text-xs"></i>New Sale</button>
+          </div>
+        </div>
+
+        <!-- STAT CARDS -->
+        <div id="statCards" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-7"></div>
+
+        <!-- CHART + RECENT ORDERS -->
+        <div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
+          <!-- Sales Overview Chart -->
+          <div class="xl:col-span-2 bg-white dark:bg-white/[0.03] rounded-2xl border border-slate-200/60 dark:border-white/5 p-6">
+            <div class="flex items-center justify-between mb-5">
+              <div><h3 class="font-700 text-base text-slate-900 dark:text-white">Sales Overview</h3><p class="text-xs text-slate-400 mt-0.5">Revenue and profit trends</p></div>
+              <div class="flex items-center gap-4 text-xs">
+                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-brand-500"></span><span class="text-slate-500">Revenue</span></span>
+                <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span><span class="text-slate-500">Profit</span></span>
+              </div>
+            </div>
+            <div class="chart-container" style="height:280px"><canvas id="salesChart"></canvas></div>
+          </div>
+
+          <!-- Recent Orders -->
+          <div class="bg-white dark:bg-white/[0.03] rounded-2xl border border-slate-200/60 dark:border-white/5 flex flex-col">
+            <div class="flex items-center justify-between p-6 pb-4">
+              <div><h3 class="font-700 text-base text-slate-900 dark:text-white">Recent Orders</h3><p class="text-xs text-slate-400 mt-0.5">Latest account sales</p></div>
+              <button onclick="navigateTo('sold')" class="text-xs text-brand-600 dark:text-brand-400 font-600 hover:underline">View All</button>
+            </div>
+            <div id="recentOrdersList" class="flex-1 overflow-y-auto px-3 pb-3 space-y-1" style="max-height:320px"></div>
+          </div>
+        </div>
+
+        <!-- BOTTOM ROW: Top Sellers + Quick Stats -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-5">
+          <div class="bg-white dark:bg-white/[0.03] rounded-2xl border border-slate-200/60 dark:border-white/5 p-6">
+            <h3 class="font-700 text-base text-slate-900 dark:text-white mb-4">Top Sellers</h3>
+            <div id="topSellersList" class="space-y-3"></div>
+          </div>
+          <div class="bg-white dark:bg-white/[0.03] rounded-2xl border border-slate-200/60 dark:border-white/5 p-6">
+            <h3 class="font-700 text-base text-slate-900 dark:text-white mb-4">Account Status Distribution</h3>
+            <div class="chart-container" style="height:220px"><canvas id="statusChart"></canvas></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== POS ==================== -->
+      <section id="posView" class="hidden">
+        <div class="mb-6"><h1 class="text-[26px] font-800 text-slate-900 dark:text-white tracking-tight">Point of Sale</h1><p class="text-sm text-slate-500 mt-0.5">Quick sell accounts from your inventory</p></div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div class="lg:col-span-2">
+            <div class="flex flex-wrap gap-3 mb-4">
+              <div class="relative flex-1 min-w-[200px]"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i><input id="posSearch" type="text" placeholder="Search available accounts..." oninput="renderPOS()" class="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm transition-all focus:border-brand-500/40"></div>
+            </div>
+            <div id="posGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+          </div>
+          <div class="bg-white dark:bg-white/[0.03] rounded-2xl border border-slate-200/60 dark:border-white/5 p-6 h-fit sticky top-[88px]">
+            <h3 class="font-700 text-base text-slate-900 dark:text-white mb-4">Quick Sell</h3>
+            <div id="posCartInfo" class="text-center py-8"><i class="fas fa-hand-pointer text-3xl text-slate-300 dark:text-slate-600 mb-3"></i><p class="text-sm text-slate-400">Select an account to sell</p></div>
+            <div id="posCartForm" class="hidden space-y-4">
+              <div class="bg-brand-50 dark:bg-brand-500/10 border border-brand-200 dark:border-brand-500/20 rounded-xl p-4"><p class="text-xs font-600 text-brand-600 dark:text-brand-400 mb-1">Selected Account</p><p id="posCartEmail" class="text-sm font-600 text-slate-800 dark:text-white truncate"></p><p id="posCartBuyPrice" class="text-xs text-slate-500 mt-0.5"></p></div>
+              <div><label class="block text-xs font-600 text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">Buyer Name *</label><input id="posBuyerName" type="text" placeholder="Full name" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm transition-all focus:border-brand-500/40"></div>
+              <div><label class="block text-xs font-600 text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">Buyer Phone *</label><input id="posBuyerPhone" type="tel" placeholder="+92 300 1234567" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm transition-all focus:border-brand-500/40"></div>
+              <div><label class="block text-xs font-600 text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">Sold Price (Rs.) *</label><div class="relative"><span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">Rs.</span><input id="posSellPrice" type="number" step="0.01" min="0" placeholder="0" oninput="updatePosProfit()" class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm transition-all focus:border-brand-500/40"></div><p id="posProfitHint" class="text-xs mt-1.5 hidden"></p></div>
+              <button onclick="executePosSale()" class="w-full py-3 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-500 hover:to-emerald-600 text-white font-600 rounded-xl transition-all shadow-lg shadow-emerald-600/20 active:scale-[0.98]"><i class="fas fa-check-circle mr-2"></i>Complete Sale</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== INVENTORY ==================== -->
+      <section id="inventoryView" class="hidden">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div><h1 class="text-[26px] font-800 text-slate-900 dark:text-white tracking-tight">Inventory</h1><p class="text-sm text-slate-500 mt-0.5">Available Gmail accounts in stock</p></div>
+          <div class="flex items-center gap-2">
+            <button onclick="exportCSV('available')" class="px-4 py-2 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm font-500 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/10 transition-colors"><i class="fas fa-download mr-1.5 text-xs"></i>Export</button>
+            <button onclick="openAddModal()" class="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-sm font-600 transition-colors shadow-lg shadow-brand-600/20"><i class="fas fa-plus mr-1.5 text-xs"></i>Add Account</button>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-3 mb-4">
+          <div class="relative"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i><input id="invSearch" type="text" placeholder="Search by email..." oninput="renderInventory()" class="pl-9 pr-4 py-2.5 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm w-56 transition-all focus:border-brand-500/40"></div>
+          <select id="invSellerFilter" onchange="renderInventory()" class="px-3 py-2.5 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm text-slate-600 dark:text-slate-300"><option value="all">All Sellers</option></select>
+        </div>
+        <div class="bg-white dark:bg-white/[0.03] rounded-2xl border border-slate-200/60 dark:border-white/5 overflow-hidden">
+          <div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="border-b border-slate-200 dark:border-white/5"><th class="text-left px-5 py-3.5 font-600 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Gmail Address</th><th class="text-left px-5 py-3.5 font-600 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider hidden md:table-cell">Password</th><th class="text-left px-5 py-3.5 font-600 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Seller</th><th class="text-left px-5 py-3.5 font-600 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider hidden sm:table-cell">Phone</th><th class="text-left px-5 py-3.5 font-600 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Buy Price</th><th class="text-left px-5 py-3.5 font-600 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider hidden lg:table-cell">Note</th><th class="text-right px-5 py-3.5 font-600 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Actions</th></tr></thead><tbody id="inventoryTableBody"></tbody></table></div>
+          <div id="inventoryEmpty" class="hidden py-14 text-center"><i class="fas fa-box-open text-4xl text-slate-300 dark:text-slate-700 mb-3"></i><p class="text-sm text-slate-400">No available accounts found</p></div>
+        </div>
+      </section>
+
+      <!-- ==================== SOLD ==================== -->
+      <section id="soldView" class="hidden">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div><h1 class="text-[26px] font-800 text-slate-900 dark:text-white tracking-tight">Sold Accounts</h1><p class="text-sm text-slate-500 mt-0.5">Complete sales history</p></div>
+          <button onclick="exportCSV('sold')" class="px-4 py-2 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm font-500 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/10 transition-colors"><i class="fas fa-download mr-1.5 text-xs"></i>Export CSV</button>
+        </div>
+        <div class="flex flex-wrap gap-3 mb-4">
+          <div class="relative"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i><input id="soldSearch" type="text" placeholder="Search by email or buyer..." oninput="renderSold()" class="pl-9 pr-4 py-2.5 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm w-56 transition-all focus:border-brand-500/40"></div>
+          <select id="soldBuyerFilter" onchange="renderSold()" class="px-3 py-2.5 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm text-slate-600 dark:text-slate-300"><option value="all">All Buyers</option></select>
+          <input id="soldDateFilter" type="date" onchange="renderSold()" class="px-3 py-2.5 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm text-slate-600 dark:text-slate-300">
+        </div>
+        <div class="bg-white dark:bg-white/[0.03] rounded-2xl border border-slate-200/60 dark:border-white/5 overflow-hidden">
+          <div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="border-b border-slate-200 dark:border-white/5"><th class="text-left px-5 py-3.5 font-600 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Order ID</th><th class="text-left px-5 py-3.5 font-600 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Gmail Address</th><th class="text-left px-5 py-3.5 font-600 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Buyer</th><th class="text-left px-5 py-3.5 font-600 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider hidden sm:table-cell">Phone</th><th class="text-left px-5 py-3.5 font-600 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Sold Price</th><th class="text-left px-5 py-3.5 font-600 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider hidden lg:table-cell">Date</th><th class="text-left px-5 py-3.5 font-600 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Status</th><th class="text-right px-5 py-3.5 font-600 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Actions</th></tr></thead><tbody id="soldTableBody"></tbody></table></div>
+          <div id="soldEmpty" class="hidden py-14 text-center"><i class="fas fa-receipt text-4xl text-slate-300 dark:text-slate-700 mb-3"></i><p class="text-sm text-slate-400">No sold accounts found</p></div>
+        </div>
+      </section>
+
+      <!-- ==================== ANALYTICS ==================== -->
+      <section id="analyticsView" class="hidden">
+        <div class="mb-6"><h1 class="text-[26px] font-800 text-slate-900 dark:text-white tracking-tight">Analytics</h1><p class="text-sm text-slate-500 mt-0.5">Detailed performance insights</p></div>
+        <div id="analyticsSummary" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-6"></div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <div class="bg-white dark:bg-white/[0.03] rounded-2xl border border-slate-200/60 dark:border-white/5 p-6"><h3 class="font-700 text-base text-slate-900 dark:text-white mb-4">Profit Margin Trend</h3><div class="chart-container" style="height:260px"><canvas id="profitChart"></canvas></div></div>
+          <div class="bg-white dark:bg-white/[0.03] rounded-2xl border border-slate-200/60 dark:border-white/5 p-6"><h3 class="font-700 text-base text-slate-900 dark:text-white mb-4">Top Sold Accounts</h3><div id="topAccountsList" class="space-y-3"></div></div>
+        </div>
+      </section>
+
+      <!-- ==================== TRANSACTIONS ==================== -->
+      <section id="transactionsView" class="hidden">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div><h1 class="text-[26px] font-800 text-slate-900 dark:text-white tracking-tight">Transaction Log</h1><p class="text-sm text-slate-500 mt-0.5">Complete audit trail</p></div>
+          <button onclick="exportCSV('transactions')" class="px-4 py-2 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm font-500 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/10 transition-colors"><i class="fas fa-download mr-1.5 text-xs"></i>Export Log</button>
+        </div>
+        <div class="bg-white dark:bg-white/[0.03] rounded-2xl border border-slate-200/60 dark:border-white/5 overflow-hidden">
+          <div class="overflow-x-auto"><table class="w-full text-sm"><thead><tr class="border-b border-slate-200 dark:border-white/5"><th class="text-left px-5 py-3.5 font-600 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Txn ID</th><th class="text-left px-5 py-3.5 font-600 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Gmail Address</th><th class="text-left px-5 py-3.5 font-600 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider hidden sm:table-cell">Buyer</th><th class="text-left px-5 py-3.5 font-600 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Sold Price</th><th class="text-left px-5 py-3.5 font-600 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider hidden md:table-cell">Profit</th><th class="text-left px-5 py-3.5 font-600 text-slate-500 dark:text-slate-400 text-xs uppercase tracking-wider">Timestamp</th></tr></thead><tbody id="txnTableBody"></tbody></table></div>
+          <div id="txnEmpty" class="hidden py-14 text-center"><i class="fas fa-history text-4xl text-slate-300 dark:text-slate-700 mb-3"></i><p class="text-sm text-slate-400">No transactions yet</p></div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<!-- ADD MODAL -->
+<div id="addModal" class="fixed inset-0 z-[60] hidden items-center justify-center p-4" role="dialog" aria-modal="true">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('addModal')"></div>
+  <div class="relative w-full max-w-lg bg-white dark:bg-surface-800 rounded-2xl border border-slate-200 dark:border-white/10 shadow-2xl anim-fade-up max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between p-6 border-b border-slate-200 dark:border-white/5"><h2 id="addModalTitle" class="text-lg font-700 text-slate-900 dark:text-white">Add Gmail Account</h2><button onclick="closeModal('addModal')" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 transition-colors"><i class="fas fa-times"></i></button></div>
+    <form id="addForm" class="p-6 space-y-4">
+      <input type="hidden" id="editAccountId" value="">
+      <div><label class="block text-sm font-500 text-slate-700 dark:text-slate-300 mb-1.5">Gmail Address <span class="text-red-500">*</span></label><input id="addEmail" type="email" required placeholder="example@gmail.com" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm transition-all focus:border-brand-500/40"></div>
+      <div><label class="block text-sm font-500 text-slate-700 dark:text-slate-300 mb-1.5">Password</label><div class="relative"><input id="addPassword" type="password" placeholder="Account password" class="w-full px-4 pr-10 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm transition-all focus:border-brand-500/40"><button type="button" onclick="togglePasswordVisibility('addPassword',this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"><i class="fas fa-eye text-xs"></i></button></div></div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div><label class="block text-sm font-500 text-slate-700 dark:text-slate-300 mb-1.5">Seller Name <span class="text-red-500">*</span></label><input id="addSellerName" type="text" required placeholder="Full name" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm transition-all focus:border-brand-500/40"></div>
+        <div><label class="block text-sm font-500 text-slate-700 dark:text-slate-300 mb-1.5">Seller Phone <span class="text-red-500">*</span></label><input id="addSellerPhone" type="tel" required placeholder="+92 300 1234567" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm transition-all focus:border-brand-500/40"></div>
+      </div>
+      <div><label class="block text-sm font-500 text-slate-700 dark:text-slate-300 mb-1.5">Purchase Price (Rs.) <span class="text-red-500">*</span></label><div class="relative"><span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">Rs.</span><input id="addBuyPrice" type="number" step="0.01" min="0" required placeholder="0.00" class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm transition-all focus:border-brand-500/40"></div></div>
+      <div><label class="block text-sm font-500 text-slate-700 dark:text-slate-300 mb-1.5">Note</label><textarea id="addNote" rows="2" placeholder="Optional note..." class="w-full px-4 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm transition-all focus:border-brand-500/40 resize-none"></textarea></div>
+      <div class="flex justify-end gap-3 pt-2"><button type="button" onclick="closeModal('addModal')" class="px-5 py-2.5 bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 rounded-xl text-sm font-500 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors">Cancel</button><button type="submit" class="px-5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-sm font-600 transition-colors shadow-lg shadow-brand-600/20">Save Account</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- SELL MODAL -->
+<div id="sellModal" class="fixed inset-0 z-[60] hidden items-center justify-center p-4" role="dialog" aria-modal="true">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('sellModal')"></div>
+  <div class="relative w-full max-w-lg bg-white dark:bg-surface-800 rounded-2xl border border-slate-200 dark:border-white/10 shadow-2xl anim-fade-up max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between p-6 border-b border-slate-200 dark:border-white/5"><h2 class="text-lg font-700 text-slate-900 dark:text-white">Mark as Sold</h2><button onclick="closeModal('sellModal')" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 transition-colors"><i class="fas fa-times"></i></button></div>
+    <form id="sellForm" class="p-6 space-y-4">
+      <input type="hidden" id="sellAccountId" value="">
+      <div class="bg-brand-50 dark:bg-brand-500/10 border border-brand-200 dark:border-brand-500/20 rounded-xl p-4"><p class="text-xs font-600 text-brand-600 dark:text-brand-400 mb-1">Account being sold</p><p id="sellAccountEmail" class="text-sm font-600 text-slate-800 dark:text-white"></p><p id="sellBuyPriceInfo" class="text-xs text-slate-500 mt-0.5"></p></div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div><label class="block text-sm font-500 text-slate-700 dark:text-slate-300 mb-1.5">Buyer Name <span class="text-red-500">*</span></label><input id="sellBuyerName" type="text" required placeholder="Full name" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm transition-all focus:border-brand-500/40"></div>
+        <div><label class="block text-sm font-500 text-slate-700 dark:text-slate-300 mb-1.5">Buyer Phone <span class="text-red-500">*</span></label><input id="sellBuyerPhone" type="tel" required placeholder="+92 300 1234567" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm transition-all focus:border-brand-500/40"></div>
+      </div>
+      <div><label class="block text-sm font-500 text-slate-700 dark:text-slate-300 mb-1.5">Buyer Email</label><input id="sellBuyerEmail" type="email" placeholder="buyer@email.com" class="w-full px-4 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm transition-all focus:border-brand-500/40"></div>
+      <div><label class="block text-sm font-500 text-slate-700 dark:text-slate-300 mb-1.5">Sold Price (Rs.) <span class="text-red-500">*</span></label><div class="relative"><span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">Rs.</span><input id="sellPrice" type="number" step="0.01" min="0" required placeholder="0.00" class="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl text-sm transition-all focus:border-brand-500/40"></div><p id="sellProfitHint" class="text-xs mt-1.5 hidden"></p></div>
+      <div class="flex justify-end gap-3 pt-2"><button type="button" onclick="closeModal('sellModal')" class="px-5 py-2.5 bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 rounded-xl text-sm font-500 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors">Cancel</button><button type="submit" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-600 transition-colors shadow-lg shadow-emerald-600/20">Confirm Sale</button></div>
+    </form>
+  </div>
+</div>
+
+<!-- DETAIL MODAL -->
+<div id="detailModal" class="fixed inset-0 z-[60] hidden items-center justify-center p-4" role="dialog" aria-modal="true">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm" onclick="closeModal('detailModal')"></div>
+  <div class="relative w-full max-w-md bg-white dark:bg-surface-800 rounded-2xl border border-slate-200 dark:border-white/10 shadow-2xl anim-fade-up max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between p-6 border-b border-slate-200 dark:border-white/5"><h2 class="text-lg font-700 text-slate-900 dark:text-white">Account Details</h2><button onclick="closeModal('detailModal')" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 transition-colors"><i class="fas fa-times"></i></button></div>
+    <div id="detailContent" class="p-6"></div>
+  </div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div id="confirmModal" class="fixed inset-0 z-[70] hidden items-center justify-center p-4" role="dialog" aria-modal="true">
+  <div class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+  <div class="relative w-full max-w-sm bg-white dark:bg-surface-800 rounded-2xl border border-slate-200 dark:border-white/10 shadow-2xl anim-fade-up p-6 text-center">
+    <div class="w-12 h-12 mx-auto rounded-full bg-red-100 dark:bg-red-500/10 flex items-center justify-center mb-4"><i class="fas fa-trash-alt text-red-500"></i></div>
+    <h3 class="text-lg font-700 text-slate-900 dark:text-white mb-2">Delete Account</h3>
+    <p id="confirmMsg" class="text-sm text-slate-500 mb-6">Are you sure? This cannot be undone.</p>
+    <div class="flex gap-3 justify-center"><button onclick="closeModal('confirmModal')" class="px-5 py-2.5 bg-slate-100 dark:bg-white/5 text-slate-600 dark:text-slate-300 rounded-xl text-sm font-500 hover:bg-slate-200 dark:hover:bg-white/10 transition-colors">Cancel</button><button id="confirmBtn" class="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-sm font-600 transition-colors">Delete</button></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toastContainer" class="fixed top-4 right-4 z-[80] space-y-2 pointer-events-none" style="max-width:360px"></div>
+
+<script>
+var CREDENTIALS = { username: 'admin', password: 'admin123' };
+var STATE = { accounts: [], transactions: [], currentView: 'dashboard', theme: 'dark', isLoggedIn: false, chartInstances: {}, posSelectedId: null };
+
+function loadData() {
+  try { var d = JSON.parse(localStorage.getItem('rg_pos_data')); if (d) { STATE.accounts = d.accounts || []; STATE.transactions = d.transactions || []; } } catch(e) { STATE.accounts = []; STATE.transactions = []; }
+  STATE.theme = localStorage.getItem('rg_pos_theme') || 'dark';
+}
+function saveData() { localStorage.setItem('rg_pos_data', JSON.stringify({ accounts: STATE.accounts, transactions: STATE.transactions })); }
+function fmt(p) { return 'Rs. ' + parseFloat(p).toFixed(0); }
+function fmtDateTime(iso) { if (!iso) return '—'; var d = new Date(iso); return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }); }
+function today() { return new Date().toISOString().split('T')[0]; }
+function uid() { return 'acc_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5); }
+function txnUid() { return 'txn_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5); }
+
+function getDateRange(period) {
+  var n = new Date(), s, e;
+  if (period === 'today') { s = new Date(n.getFullYear(), n.getMonth(), n.getDate()); e = new Date(n.getFullYear(), n.getMonth(), n.getDate(), 23, 59, 59); }
+  else if (period === 'week') { var day = n.getDay() || 7; s = new Date(n); s.setDate(n.getDate() - day + 1); s.setHours(0,0,0,0); e = new Date(s); e.setDate(s.getDate() + 6); e.setHours(23,59,59); }
+  else if (period === 'month') { s = new Date(n.getFullYear(), n.getMonth(), 1); e = new Date(n.getFullYear(), n.getMonth() + 1, 0, 23, 59, 59); }
+  else { s = new Date(2000, 0, 1); e = new Date(2100, 0, 1); }
+  return { start: s, end: e };
+}
+
+function getPrevRange(period) {
+  var n = new Date(), s, e;
+  if (period === 'today') { s = new Date(n.getFullYear(), n.getMonth(), n.getDate() - 1); e = new Date(n.getFullYear(), n.getMonth(), n.getDate() - 1, 23, 59, 59); }
+  else if (period === 'week') { var day = n.getDay() || 7; s = new Date(n); s.setDate(n.getDate() - day - 6); s.setHours(0,0,0,0); e = new Date(s); e.setDate(s.getDate() + 6); e.setHours(23,59,59); }
+  else if (period === 'month') { s = new Date(n.getFullYear(), n.getMonth() - 1, 1); e = new Date(n.getFullYear(), n.getMonth(), 0, 23, 59, 59); }
+  else { return getDateRange(period); }
+  return { start: s, end: e };
+}
+
+function getFilteredSold(range) {
+  return STATE.accounts.filter(function(a) { return a.status === 'sold' && a.soldDate; }).filter(function(a) { var d = new Date(a.soldDate); return d >= range.start && d <= range.end; });
+}
+
+function getStats() {
+  var period = (document.getElementById('dashPeriod')?.value) || 'week';
+  var range = getDateRange(period), prevRange = getPrevRange(period);
+  var cur = getFilteredSold(range), prev = getFilteredSold(prevRange);
+  var curRev = cur.reduce(function(s, a) { return s + (a.soldPrice || 0); }, 0);
+  var prevRev = prev.reduce(function(s, a) { return s + (a.soldPrice || 0); }, 0);
+  var curProfit = cur.reduce(function(s, a) { return s + ((a.soldPrice || 0) - (a.buyPrice || 0)); }, 0);
+  var prevProfit = prev.reduce(function(s, a) { return s + ((a.soldPrice || 0) - (a.buyPrice || 0)); }, 0);
+  var allSold = STATE.accounts.filter(function(a) { return a.status === 'sold'; });
+  var totalRev = allSold.reduce(function(s, a) { return s + (a.soldPrice || 0); }, 0);
+  var totalProfit = allSold.reduce(function(s, a) { return s + ((a.soldPrice || 0) - (a.buyPrice || 0)); }, 0);
+  var pctChange = function(cur, prev) { if (prev === 0) return cur > 0 ? 100 : 0; return ((cur - prev) / prev * 100); };
+  return {
+    salesRevenue: curRev, salesChange: pctChange(curRev, prevRev),
+    totalOrders: cur.length, ordersChange: pctChange(cur.length, prev.length),
+    totalRevenue: totalRev, revenueChange: pctChange(curRev, prevRev),
+    netProfit: period === 'all' ? totalProfit : curProfit, profitChange: pctChange(period === 'all' ? totalProfit : curProfit, prevProfit),
+    availableCount: STATE.accounts.filter(function(a) { return a.status === 'available'; }).length,
+    soldCount: allSold.length
+  };
+}
+
+function showToast(msg, type) {
+  type = type || 'success'; var c = document.getElementById('toastContainer');
+  var cols = { success: 'bg-emerald-600', error: 'bg-red-600', info: 'bg-brand-600', warning: 'bg-amber-600' };
+  var icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', info: 'fa-info-circle', warning: 'fa-exclamation-triangle' };
+  var t = document.createElement('div');
+  t.className = 'pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-white text-sm font-500 toast-enter ' + (cols[type] || cols.info);
+  t.innerHTML = '<i class="fas ' + (icons[type] || icons.info) + '"></i><span>' + msg + '</span>';
+  c.appendChild(t);
+  setTimeout(function() { t.classList.remove('toast-enter'); t.classList.add('toast-exit'); setTimeout(function() { t.remove(); }, 300); }, 3000);
+}
+
+function openModal(id) { var m = document.getElementById(id); m.classList.remove('hidden'); m.classList.add('flex'); document.body.style.overflow = 'hidden'; }
+function closeModal(id) { var m = document.getElementById(id); m.classList.add('hidden'); m.classList.remove('flex'); document.body.style.overflow = ''; }
+function toggleTheme() { STATE.theme = STATE.theme === 'dark' ? 'light' : 'dark'; applyTheme(); localStorage.setItem('rg_pos_theme', STATE.theme); if (STATE.currentView === 'analytics') renderAnalyticsCharts(); if (STATE.currentView === 'dashboard') renderDashboard(); }
+function applyTheme() {
+  document.documentElement.classList.toggle('dark', STATE.theme === 'dark');
+  var i = document.getElementById('themeIcon'), l = document.getElementById('themeLabel');
+  if (STATE.theme === 'dark') { i.className = 'fas fa-moon w-5 text-center text-sm'; l.textContent = 'Dark Mode'; }
+  else { i.className = 'fas fa-sun w-5 text-center text-sm'; l.textContent = 'Light Mode'; }
+}
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('-translate-x-full'); document.getElementById('sidebarOverlay').classList.toggle('hidden'); }
+
+function navigateTo(view) {
+  STATE.currentView = view; STATE.posSelectedId = null;
+  ['dashboard', 'pos', 'inventory', 'sold', 'analytics', 'transactions'].forEach(function(v) {
+    var el = document.getElementById(v + 'View'); if (!el) return;
+    el.classList.toggle('hidden', v !== view);
+    if (v === view) { el.classList.remove('anim-fade-in'); void el.offsetWidth; el.classList.add('anim-fade-in'); }
+  });
+  document.querySelectorAll('[data-nav]').forEach(function(b) { b.classList.toggle('active', b.dataset.nav === view); });
+  if (window.innerWidth < 768) { var sb = document.getElementById('sidebar'); if (!sb.classList.contains('-translate-x-full')) toggleSidebar(); }
+  switch (view) { case 'dashboard': renderDashboard(); break; case 'pos': renderPOS(); break; case 'inventory': renderInventory(); break; case 'sold': renderSold(); break; case 'analytics': renderAnalytics(); break; case 'transactions': renderTransactions(); break; }
+}
+
+/* ===== DASHBOARD ===== */
+function renderDashboard() {
+  var s = getStats();
+  var cards = [
+    { label: "Today's Sales", value: fmt(s.salesRevenue), change: s.salesChange, icon: 'fa-dollar-sign', iconBg: 'bg-blue-500/10', iconColor: 'text-blue-500', stagger: 1 },
+    { label: 'Total Orders', value: s.totalOrders, change: s.ordersChange, icon: 'fa-shopping-cart', iconBg: 'bg-violet-500/10', iconColor: 'text-violet-500', stagger: 2 },
+    { label: 'Revenue', value: fmt(s.totalRevenue), change: s.revenueChange, icon: 'fa-wallet', iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-500', stagger: 3 },
+    { label: 'Net Profit', value: fmt(s.netProfit), change: s.profitChange, icon: 'fa-chart-pie', iconBg: 'bg-amber-500/10', iconColor: 'text-amber-500', stagger: 4 }
+  ];
+  document.getElementById('statCards').innerHTML = cards.map(function(c) {
+    var isUp = c.change >= 0;
+    return '<div class="stat-card bg-white dark:bg-white/[0.03] rounded-2xl border border-slate-200/60 dark:border-white/5 p-5 anim-fade-up stagger-' + c.stagger + '">' +
+      '<div class="flex items-center justify-between mb-4"><div class="w-11 h-11 rounded-xl ' + c.iconBg + ' flex items-center justify-center"><i class="fas ' + c.icon + ' ' + c.iconColor + '"></i></div>' +
+      '<span class="inline-flex items-center gap-1 text-xs font-600 px-2 py-1 rounded-lg ' + (isUp ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500') + '"><i class="fas fa-arrow-' + (isUp ? 'up' : 'down') + ' text-[9px]"></i>' + Math.abs(c.change).toFixed(1) + '%</span></div>' +
+      '<p class="text-2xl font-800 text-slate-900 dark:text-white">' + c.value + '</p>' +
+      '<p class="text-xs text-slate-400 mt-1">vs previous period</p></div>';
+  }).join('');
+
+  renderSalesChart();
+  renderRecentOrders();
+  renderTopSellers();
+  renderStatusChart();
+}
+
+function renderSalesChart() {
+  var period = (document.getElementById('dashPeriod')?.value) || 'week';
+  var labels = [], revData = [], profData = [];
+  if (period === 'today') {
+    for (var h = 0; h < 24; h += 3) { labels.push(h + ':00'); var hr = STATE.accounts.filter(function(a) { return a.status === 'sold' && a.soldDate && new Date(a.soldDate).getHours() >= h && new Date(a.soldDate).getHours() < h + 3 && new Date(a.soldDate).toDateString() === new Date().toDateString(); }); revData.push(hr.reduce(function(s, a) { return s + (a.soldPrice || 0); }, 0)); profData.push(hr.reduce(function(s, a) { return s + ((a.soldPrice || 0) - (a.buyPrice || 0)); }, 0)); }
+  } else {
+    var count = period === 'week' ? 7 : period === 'month' ? 30 : 6;
+    for (var i = count - 1; i >= 0; i--) {
+      var d = new Date(); if (period !== 'all') d.setDate(d.getDate() - i); else d.setMonth(d.getMonth() - i);
+      labels.push(period === 'month' ? d.getDate() : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+      var dayStr = d.toDateString();
+      var dayAcc = STATE.accounts.filter(function(a) { return a.status === 'sold' && a.soldDate && new Date(a.soldDate).toDateString() === dayStr; });
+      revData.push(dayAcc.reduce(function(s, a) { return s + (a.soldPrice || 0); }, 0));
+      profData.push(dayAcc.reduce(function(s, a) { return s + ((a.soldPrice || 0) - (a.buyPrice || 0)); }, 0));
+    }
+  }
+  destroyChart('salesChart');
+  var isDark = STATE.theme === 'dark';
+  var ctx = document.getElementById('salesChart').getContext('2d');
+  var revGrad = ctx.createLinearGradient(0, 0, 0, 280); revGrad.addColorStop(0, 'rgba(37,99,235,0.2)'); revGrad.addColorStop(1, 'rgba(37,99,235,0)');
+  var profGrad = ctx.createLinearGradient(0, 0, 0, 280); profGrad.addColorStop(0, 'rgba(16,185,129,0.15)'); profGrad.addColorStop(1, 'rgba(16,185,129,0)');
+  STATE.chartInstances['salesChart'] = new Chart(ctx, {
+    type: 'line', data: { labels: labels, datasets: [
+      { label: 'Revenue', data: revData, borderColor: '#2563eb', backgroundColor: revGrad, fill: true, tension: 0.4, borderWidth: 2.5, pointRadius: 0, pointHoverRadius: 6, pointHoverBackgroundColor: '#2563eb', pointHoverBorderWidth: 3, pointHoverBorderColor: isDark ? '#0a0e1a' : '#fff' },
+      { label: 'Profit', data: profData, borderColor: '#10b981', backgroundColor: profGrad, fill: true, tension: 0.4, borderWidth: 2.5, pointRadius: 0, pointHoverRadius: 6, pointHoverBackgroundColor: '#10b981', pointHoverBorderWidth: 3, pointHoverBorderColor: isDark ? '#0a0e1a' : '#fff' }
+    ] },
+    options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, plugins: { legend: { display: false }, tooltip: { backgroundColor: isDark ? '#1e293b' : '#fff', titleColor: isDark ? '#e2e8f0' : '#1e293b', bodyColor: isDark ? '#94a3b8' : '#64748b', borderColor: isDark ? '#334155' : '#e2e8f0', borderWidth: 1, padding: 12, cornerRadius: 12, titleFont: { family: 'Plus Jakarta Sans', weight: '600' }, bodyFont: { family: 'Plus Jakarta Sans' }, callbacks: { label: function(c) { return c.dataset.label + ': Rs. ' + c.parsed.y.toFixed(0); } } } }, scales: { x: { grid: { display: false }, ticks: { color: isDark ? '#475569' : '#94a3b8', font: { size: 11, family: 'Plus Jakarta Sans' }, maxRotation: 0 }, border: { display: false } }, y: { grid: { color: isDark ? 'rgba(71,85,105,0.15)' : 'rgba(148,163,184,0.1)' }, ticks: { color: isDark ? '#475569' : '#94a3b8', font: { size: 11, family: 'Plus Jakarta Sans' }, callback: function(v) { return 'Rs.' + v; } }, border: { display: false }, beginAtZero: true } } }
+  });
+}
+
+function renderRecentOrders() {
+  var recent = STATE.accounts.filter(function(a) { return a.status === 'sold'; }).sort(function(a, b) { return new Date(b.soldDate) - new Date(a.soldDate); }).slice(0, 8);
+  var el = document.getElementById('recentOrdersList');
+  if (!recent.length) { el.innerHTML = '<div class="text-center py-10"><i class="fas fa-inbox text-3xl text-slate-300 dark:text-slate-700 mb-3 block"></i><p class="text-sm text-slate-400">No sales yet</p></div>'; return; }
+  el.innerHTML = recent.map(function(a, i) {
+    var orderId = '#ORD-' + (7842 + i);
+    var statuses = ['Completed', 'Completed', 'Completed', 'Completed', 'Pending'];
+    var statusClass = 'badge-completed';
+    return '<div class="order-row flex items-center gap-3 px-3 py-3 rounded-xl cursor-pointer" onclick="showDetail(\'' + a.id + '\')">' +
+      '<div class="flex-1 min-w-0"><p class="text-xs font-mono text-slate-400 mb-0.5">' + orderId + '</p><p class="text-sm font-600 text-slate-800 dark:text-white truncate">' + a.email + '</p><p class="text-xs text-slate-400 mt-0.5">' + (a.buyerName || 'Unknown') + '</p></div>' +
+      '<div class="text-right shrink-0"><p class="text-sm font-700 text-slate-800 dark:text-white">' + fmt(a.soldPrice) + '</p><span class="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-600 ' + statusClass + '">' + (i === 4 ? 'Pending' : 'Completed') + '</span></div></div>';
+  }).join('');
+}
+
+function renderTopSellers() {
+  var map = {}; STATE.accounts.filter(function(a) { return a.status === 'sold'; }).forEach(function(a) { if (!map[a.sellerName]) map[a.sellerName] = { count: 0, revenue: 0 }; map[a.sellerName].count++; map[a.sellerName].revenue += (a.soldPrice || 0); });
+  var sellers = Object.keys(map).map(function(k) { return { name: k, count: map[k].count, revenue: map[k].revenue }; }).sort(function(a, b) { return b.revenue - a.revenue; }).slice(0, 5);
+  var maxRev = sellers.length ? sellers[0].revenue : 1;
+  var el = document.getElementById('topSellersList');
+  if (!sellers.length) { el.innerHTML = '<div class="text-center py-8"><i class="fas fa-users text-3xl text-slate-300 dark:text-slate-700 mb-3 block"></i><p class="text-sm text-slate-400">No seller data yet</p></div>'; return; }
+  var colors = ['bg-brand-500', 'bg-emerald-500', 'bg-violet-500', 'bg-amber-500', 'bg-rose-500'];
+  el.innerHTML = sellers.map(function(s, i) {
+    var pct = (s.revenue / maxRev * 100).toFixed(0);
+    return '<div class="flex items-center gap-3"><span class="w-7 h-7 rounded-lg ' + colors[i] + ' flex items-center justify-center text-white text-xs font-700 shrink-0">' + (i + 1) + '</span><div class="flex-1 min-w-0"><div class="flex items-center justify-between mb-1"><p class="text-sm font-600 text-slate-800 dark:text-white truncate">' + s.name + '</p><span class="text-xs text-slate-400">' + s.count + ' sales</span></div><div class="w-full h-1.5 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden"><div class="h-full ' + colors[i] + ' rounded-full transition-all duration-500" style="width:' + pct + '%"></div></div><p class="text-xs text-slate-400 mt-0.5">' + fmt(s.revenue) + '</p></div></div>';
+  }).join('');
+}
+
+function renderStatusChart() {
+  var avail = STATE.accounts.filter(function(a) { return a.status === 'available'; }).length;
+  var sold = STATE.accounts.filter(function(a) { return a.status === 'sold'; }).length;
+  destroyChart('statusChart');
+  var isDark = STATE.theme === 'dark';
+  STATE.chartInstances['statusChart'] = new Chart(document.getElementById('statusChart'), {
+    type: 'doughnut', data: { labels: ['Available', 'Sold'], datasets: [{ data: [avail, sold], backgroundColor: ['#10b981', '#2563eb'], borderWidth: 0, hoverOffset: 8 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '72%', plugins: { legend: { position: 'bottom', labels: { color: isDark ? '#94a3b8' : '#64748b', font: { size: 12, family: 'Plus Jakarta Sans' }, padding: 20, usePointStyle: true, pointStyleWidth: 10 } }, tooltip: { backgroundColor: isDark ? '#1e293b' : '#fff', titleColor: isDark ? '#e2e8f0' : '#1e293b', bodyColor: isDark ? '#94a3b8' : '#64748b', borderColor: isDark ? '#334155' : '#e2e8f0', borderWidth: 1, padding: 12, cornerRadius: 12 } } }
+  });
+}
+
+/* ===== POS ===== */
+function renderPOS() {
+  var search = (document.getElementById('posSearch')?.value || '').toLowerCase();
+  var f = STATE.accounts.filter(function(a) { return a.status === 'available'; });
+  if (search) f = f.filter(function(a) { return a.email.toLowerCase().indexOf(search) !== -1; });
+  var el = document.getElementById('posGrid');
+  if (!f.length) { el.innerHTML = '<div class="col-span-full text-center py-14"><i class="fas fa-box-open text-4xl text-slate-300 dark:text-slate-700 mb-3"></i><p class="text-sm text-slate-400">No available accounts</p></div>'; return; }
+  el.innerHTML = f.map(function(a) {
+    var isSelected = STATE.posSelectedId === a.id;
+    return '<div onclick="selectPosAccount(\'' + a.id + '\')" class="p-4 rounded-xl border-2 cursor-pointer transition-all ' + (isSelected ? 'border-brand-500 bg-brand-50 dark:bg-brand-500/10 shadow-lg shadow-brand-500/10' : 'border-slate-200/60 dark:border-white/5 bg-white dark:bg-white/[0.03] hover:border-brand-300 dark:hover:border-brand-500/30 hover:shadow-md') + '">' +
+      '<div class="flex items-center gap-3"><div class="w-10 h-10 rounded-xl ' + (isSelected ? 'bg-brand-500 text-white' : 'bg-slate-100 dark:bg-white/5 text-slate-400') + ' flex items-center justify-center"><i class="fas fa-envelope text-sm"></i></div>' +
+      '<div class="flex-1 min-w-0"><p class="text-sm font-600 text-slate-800 dark:text-white truncate">' + a.email + '</p><p class="text-xs text-slate-400">' + a.sellerName + ' · ' + fmt(a.buyPrice) + '</p></div>' +
+      (isSelected ? '<div class="w-6 h-6 rounded-full bg-brand-500 flex items-center justify-center"><i class="fas fa-check text-white text-xs"></i></div>' : '') +
+      '</div></div>';
+  }).join('');
+}
+
+function selectPosAccount(id) {
+  STATE.posSelectedId = id; renderPOS();
+  var a = STATE.accounts.find(function(x) { return x.id === id; }); if (!a) return;
+  document.getElementById('posCartInfo').classList.add('hidden');
+  document.getElementById('posCartForm').classList.remove('hidden');
+  document.getElementById('posCartEmail').textContent = a.email;
+  document.getElementById('posCartBuyPrice').textContent = 'Purchase price: ' + fmt(a.buyPrice);
+  document.getElementById('posBuyerName').value = '';
+  document.getElementById('posBuyerPhone').value = '';
+  document.getElementById('posSellPrice').value = '';
+  document.getElementById('posProfitHint').classList.add('hidden');
+}
+
+function updatePosProfit() {
+  var a = STATE.accounts.find(function(x) { return x.id === STATE.posSelectedId; }); if (!a) return;
+  var sp = parseFloat(document.getElementById('posSellPrice').value) || 0;
+  var h = document.getElementById('posProfitHint');
+  if (sp > 0) { var pr = sp - a.buyPrice; h.textContent = 'Profit: ' + (pr >= 0 ? '+' : '') + fmt(pr); h.className = 'text-xs mt-1.5 ' + (pr >= 0 ? 'text-emerald-500' : 'text-red-500'); h.classList.remove('hidden'); }
+  else h.classList.add('hidden');
+}
+
+function executePosSale() {
+  var id = STATE.posSelectedId; if (!id) return;
+  var a = STATE.accounts.find(function(x) { return x.id === id; }); if (!a) return;
+  var bn = document.getElementById('posBuyerName').value.trim();
+  var bph = document.getElementById('posBuyerPhone').value.trim();
+  var sp = parseFloat(document.getElementById('posSellPrice').value) || 0;
+  if (!bn || !bph || sp <= 0) { showToast('Fill in all required fields', 'error'); return; }
+  var now = new Date().toISOString();
+  a.status = 'sold'; a.soldDate = now; a.buyerName = bn; a.buyerPhone = bph; a.buyerEmail = ''; a.soldPrice = sp;
+  STATE.transactions.push({ id: txnUid(), accountId: id, email: a.email, buyerName: bn, soldPrice: sp, buyPrice: a.buyPrice, profit: parseFloat((sp - a.buyPrice).toFixed(2)), timestamp: now });
+  saveData(); STATE.posSelectedId = null;
+  showToast('Sold to ' + bn + ' for ' + fmt(sp), 'success');
+  document.getElementById('notifBadge').classList.remove('hidden');
+  renderPOS();
+  document.getElementById('posCartInfo').classList.remove('hidden');
+  document.getElementById('posCartForm').classList.add('hidden');
+}
+
+/* ===== INVENTORY ===== */
+function renderInventory() {
+  var search = (document.getElementById('invSearch')?.value || '').toLowerCase();
+  var sf = document.getElementById('invSellerFilter')?.value || 'all';
+  var sellers = []; STATE.accounts.forEach(function(a) { if (a.status === 'available' && sellers.indexOf(a.sellerName) === -1) sellers.push(a.sellerName); }); sellers.sort();
+  var selEl = document.getElementById('invSellerFilter');
+  while (selEl.options.length > 1) selEl.remove(1);
+  sellers.forEach(function(s) { var o = document.createElement('option'); o.value = s; o.textContent = s; selEl.appendChild(o); });
+  var f = STATE.accounts.filter(function(a) { return a.status === 'available'; });
+  if (search) f = f.filter(function(a) { return a.email.toLowerCase().indexOf(search) !== -1; });
+  if (sf !== 'all') f = f.filter(function(a) { return a.sellerName === sf; });
+  var tb = document.getElementById('inventoryTableBody'), em = document.getElementById('inventoryEmpty');
+  if (!f.length) { tb.innerHTML = ''; em.classList.remove('hidden'); return; } em.classList.add('hidden');
+  tb.innerHTML = f.map(function(a) {
+    return '<tr class="table-row border-b border-slate-100 dark:border-white/5">' +
+      '<td class="px-5 py-3.5"><span class="font-600 text-slate-800 dark:text-white text-sm">' + a.email + '</span></td>' +
+      '<td class="px-5 py-3.5 hidden md:table-cell"><div class="flex items-center gap-1.5"><span class="password-masked text-slate-400 text-sm font-mono">••••••••</span><button onclick="toggleRowPassword(this,\'' + a.id + '\')" class="text-slate-400 hover:text-brand-500 transition-colors"><i class="fas fa-eye text-xs"></i></button></div><span class="password-actual hidden text-sm font-mono text-slate-600 dark:text-slate-300">' + (a.password || '—') + '</span></td>' +
+      '<td class="px-5 py-3.5"><span class="text-sm text-slate-600 dark:text-slate-300">' + a.sellerName + '</span></td>' +
+      '<td class="px-5 py-3.5 hidden sm:table-cell"><span class="text-sm text-slate-500">' + a.sellerPhone + '</span></td>' +
+      '<td class="px-5 py-3.5"><span class="text-sm font-600 text-slate-800 dark:text-white">' + fmt(a.buyPrice) + '</span></td>' +
+      '<td class="px-5 py-3.5 hidden lg:table-cell"><span class="text-xs text-slate-500 truncate block max-w-[140px]" title="' + (a.note || '').replace(/"/g, '&quot;') + '">' + (a.note || '—') + '</span></td>' +
+      '<td class="px-5 py-3.5 text-right"><div class="flex items-center justify-end gap-1">' +
+        '<button onclick="showDetail(\'' + a.id + '\')" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-brand-500 transition-colors"><i class="fas fa-eye text-xs"></i></button>' +
+        '<button onclick="openEditModal(\'' + a.id + '\')" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-amber-500 transition-colors"><i class="fas fa-pen text-xs"></i></button>' +
+        '<button onclick="openSellModal(\'' + a.id + '\')" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-500/10 text-slate-400 hover:text-emerald-500 transition-colors"><i class="fas fa-dollar-sign text-xs"></i></button>' +
+        '<button onclick="confirmDelete(\'' + a.id + '\')" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-slate-400 hover:text-red-500 transition-colors"><i class="fas fa-trash text-xs"></i></button>' +
+      '</div></td></tr>';
+  }).join('');
+}
+
+function toggleRowPassword(btn, id) {
+  var row = btn.closest('td'), masked = row.querySelector('.password-masked'), actual = row.querySelector('.password-actual'), icon = btn.querySelector('i');
+  var acc = STATE.accounts.find(function(a) { return a.id === id; }); if (!acc) return;
+  if (actual.classList.contains('hidden')) { actual.textContent = acc.password || '—'; masked.classList.add('hidden'); actual.classList.remove('hidden'); icon.className = 'fas fa-eye-slash text-xs'; }
+  else { masked.classList.remove('hidden'); actual.classList.add('hidden'); icon.className = 'fas fa-eye text-xs'; }
+}
+
+/* ===== SOLD ===== */
+function renderSold() {
+  var search = (document.getElementById('soldSearch')?.value || '').toLowerCase();
+  var bf = document.getElementById('soldBuyerFilter')?.value || 'all';
+  var df = document.getElementById('soldDateFilter')?.value || '';
+  var buyers = []; STATE.accounts.filter(function(a) { return a.status === 'sold'; }).forEach(function(a) { if (buyers.indexOf(a.buyerName) === -1 && a.buyerName) buyers.push(a.buyerName); }); buyers.sort();
+  var selEl = document.getElementById('soldBuyerFilter');
+  while (selEl.options.length > 1) selEl.remove(1);
+  buyers.forEach(function(b) { var o = document.createElement('option'); o.value = b; o.textContent = b; selEl.appendChild(o); });
+  var f = STATE.accounts.filter(function(a) { return a.status === 'sold'; });
+  if (search) f = f.filter(function(a) { return a.email.toLowerCase().indexOf(search) !== -1 || (a.buyerName || '').toLowerCase().indexOf(search) !== -1; });
+  if (bf !== 'all') f = f.filter(function(a) { return a.buyerName === bf; });
+  if (df) f = f.filter(function(a) { return a.soldDate && a.soldDate.startsWith(df); });
+  f.sort(function(a, b) { return new Date(b.soldDate) - new Date(a.soldDate); });
+  var tb = document.getElementById('soldTableBody'), em = document.getElementById('soldEmpty');
+  if (!f.length) { tb.innerHTML = ''; em.classList.remove('hidden'); return; } em.classList.add('hidden');
+  tb.innerHTML = f.map(function(a, i) {
+    var orderId = '#ORD-' + (9000 - i);
+    return '<tr class="table-row border-b border-slate-100 dark:border-white/5">' +
+      '<td class="px-5 py-3.5"><span class="text-xs font-mono text-slate-400">' + orderId + '</span></td>' +
+      '<td class="px-5 py-3.5"><span class="font-600 text-slate-800 dark:text-white text-sm">' + a.email + '</span></td>' +
+      '<td class="px-5 py-3.5"><span class="text-sm text-slate-600 dark:text-slate-300">' + a.buyerName + '</span></td>' +
+      '<td class="px-5 py-3.5 hidden sm:table-cell"><span class="text-sm text-slate-500">' + (a.buyerPhone || '—') + '</span></td>' +
+      '<td class="px-5 py-3.5"><span class="text-sm font-700 text-slate-800 dark:text-white">' + fmt(a.soldPrice) + '</span></td>' +
+      '<td class="px-5 py-3.5 hidden lg:table-cell"><span class="text-sm text-slate-500">' + fmtDateTime(a.soldDate) + '</span></td>' +
+      '<td class="px-5 py-3.5"><span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-600 badge-completed"><i class="fas fa-check-circle mr-1 text-[9px]"></i>Completed</span></td>' +
+      '<td class="px-5 py-3.5 text-right"><div class="flex items-center justify-end gap-1">' +
+        '<button onclick="showDetail(\'' + a.id + '\')" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 dark:hover:bg-white/5 text-slate-400 hover:text-brand-500 transition-colors"><i class="fas fa-eye text-xs"></i></button>' +
+        '<button onclick="confirmDelete(\'' + a.id + '\')" class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-slate-400 hover:text-red-500 transition-colors"><i class="fas fa-trash text-xs"></i></button>' +
+      '</div></td></tr>';
+  }).join('');
+}
+
+/* ===== ANALYTICS ===== */
+function renderAnalytics() {
+  var sold = STATE.accounts.filter(function(a) { return a.status === 'sold'; });
+  var avgPrice = sold.length ? (sold.reduce(function(s, a) { return s + (a.soldPrice || 0); }, 0) / sold.length) : 0;
+  var avgProfit = sold.length ? (sold.reduce(function(s, a) { return s + ((a.soldPrice || 0) - (a.buyPrice || 0)); }, 0) / sold.length) : 0;
+  var avgMargin = sold.length && avgPrice > 0 ? ((avgProfit / avgPrice) * 100) : 0;
+  var cards = [
+    { label: 'Avg Sale Price', value: fmt(avgPrice), icon: 'fa-tag', color: 'text-brand-500', bg: 'bg-brand-500/10' },
+    { label: 'Avg Profit', value: fmt(avgProfit), icon: 'fa-coins', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+    { label: 'Profit Margin', value: avgMargin.toFixed(1) + '%', icon: 'fa-percent', color: 'text-amber-500', bg: 'bg-amber-500/10' },
+    { label: 'Total Transactions', value: sold.length, icon: 'fa-exchange-alt', color: 'text-violet-500', bg: 'bg-violet-500/10' }
+  ];
+  document.getElementById('analyticsSummary').innerHTML = cards.map(function(c, i) {
+    return '<div class="bg-white dark:bg-white/[0.03] rounded-2xl border border-slate-200/60 dark:border-white/5 p-5 anim-fade-up stagger-' + (i + 1) + '"><div class="flex items-center gap-3 mb-3"><div class="w-10 h-10 rounded-xl ' + c.bg + ' flex items-center justify-center"><i class="fas ' + c.icon + ' ' + c.color + '"></i></div><span class="text-sm font-500 text-slate-500">' + c.label + '</span></div><p class="text-2xl font-800 text-slate-900 dark:text-white">' + c.value + '</p></div>';
+  }).join('');
+  var topAcc = sold.slice().sort(function(a, b) { return (b.soldPrice || 0) - (a.soldPrice || 0); }).slice(0, 6);
+  document.getElementById('topAccountsList').innerHTML = topAcc.length ? topAcc.map(function(a, i) {
+    return '<div class="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-white/[0.02]"><span class="w-7 h-7 rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-white text-xs font-700 shrink-0">' + (i + 1) + '</span><div class="flex-1 min-w-0"><p class="text-sm font-600 text-slate-800 dark:text-white truncate">' + a.email + '</p><p class="text-xs text-slate-400">Sold to ' + a.buyerName + '</p></div><span class="text-sm font-700 text-slate-800 dark:text-white shrink-0">' + fmt(a.soldPrice) + '</span></div>';
+  }).join('') : '<div class="text-center py-10"><i class="fas fa-chart-bar text-3xl text-slate-300 dark:text-slate-700 mb-3 block"></i><p class="text-sm text-slate-400">No data yet</p></div>';
+  renderAnalyticsCharts();
+}
+
+function renderAnalyticsCharts() {
+  var isDark = STATE.theme === 'dark', gridColor = isDark ? 'rgba(71,85,105,0.15)' : 'rgba(148,163,184,0.1)', textColor = isDark ? '#475569' : '#94a3b8';
+  var mL = [], mM = [];
+  for (var i = 5; i >= 0; i--) {
+    var d = new Date(); d.setMonth(d.getMonth() - i);
+    mL.push(d.toLocaleDateString('en-US', { month: 'short' }));
+    var ms = new Date(d.getFullYear(), d.getMonth(), 1), me = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
+    var mS = STATE.accounts.filter(function(a) { if (a.status !== 'sold' || !a.soldDate) return false; var sd = new Date(a.soldDate); return sd >= ms && sd <= me; });
+    var mr = mS.reduce(function(s, a) { return s + (a.soldPrice || 0); }, 0), mc = mS.reduce(function(s, a) { return s + (a.buyPrice || 0); }, 0);
+    mM.push(mr > 0 ? ((mr - mc) / mr * 100) : 0);
+  }
+  destroyChart('profitChart');
+  var ctx = document.getElementById('profitChart').getContext('2d');
+  var grad = ctx.createLinearGradient(0, 0, 0, 260); grad.addColorStop(0, 'rgba(16,185,129,0.2)'); grad.addColorStop(1, 'rgba(16,185,129,0)');
+  STATE.chartInstances['profitChart'] = new Chart(ctx, {
+    type: 'line', data: { labels: mL, datasets: [{ label: 'Margin %', data: mM, borderColor: '#10b981', backgroundColor: grad, fill: true, tension: 0.4, borderWidth: 2.5, pointRadius: 4, pointBackgroundColor: '#10b981', pointBorderWidth: 2, pointBorderColor: isDark ? '#0a0e1a' : '#fff' }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false }, ticks: { color: textColor, font: { size: 11, family: 'Plus Jakarta Sans' } }, border: { display: false } }, y: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 11 }, callback: function(v) { return v.toFixed(0) + '%'; } }, border: { display: false }, beginAtZero: true, max: 100 } } }
+  });
+}
+
+/* ===== TRANSACTIONS ===== */
+function renderTransactions() {
+  var txns = STATE.transactions.slice().sort(function(a, b) { return new Date(b.timestamp) - new Date(a.timestamp); });
+  var tb = document.getElementById('txnTableBody'), em = document.getElementById('txnEmpty');
+  if (!txns.length) { tb.innerHTML = ''; em.classList.remove('hidden'); return; } em.classList.add('hidden');
+  tb.innerHTML = txns.map(function(t) {
+    return '<tr class="table-row border-b border-slate-100 dark:border-white/5">' +
+      '<td class="px-5 py-3.5"><span class="text-xs font-mono text-slate-400">' + t.id.slice(0, 14) + '...</span></td>' +
+      '<td class="px-5 py-3.5"><span class="font-600 text-slate-800 dark:text-white text-sm">' + t.email + '</span></td>' +
+      '<td class="px-5 py-3.5 hidden sm:table-cell"><span class="text-sm text-slate-600 dark:text-slate-300">' + t.buyerName + '</span></td>' +
+      '<td class="px-5 py-3.5"><span class="text-sm font-600 text-slate-800 dark:text-white">' + fmt(t.soldPrice) + '</span></td>' +
+      '<td class="px-5 py-3.5 hidden md:table-cell"><span class="text-sm font-600 ' + (t.profit >= 0 ? 'text-emerald-500' : 'text-red-500') + '">' + (t.profit >= 0 ? '+' : '') + fmt(t.profit) + '</span></td>' +
+      '<td class="px-5 py-3.5"><span class="text-sm text-slate-500">' + fmtDateTime(t.timestamp) + '</span></td></tr>';
+  }).join('');
+}
+
+/* ===== MODALS ===== */
+function openAddModal() { document.getElementById('addModalTitle').textContent = 'Add Gmail Account'; document.getElementById('editAccountId').value = ''; document.getElementById('addForm').reset(); openModal('addModal'); }
+function openEditModal(id) {
+  var a = STATE.accounts.find(function(x) { return x.id === id; }); if (!a || a.status === 'sold') return;
+  document.getElementById('addModalTitle').textContent = 'Edit Gmail Account'; document.getElementById('editAccountId').value = id;
+  document.getElementById('addEmail').value = a.email; document.getElementById('addPassword').value = a.password || '';
+  document.getElementById('addSellerName').value = a.sellerName; document.getElementById('addSellerPhone').value = a.sellerPhone;
+  document.getElementById('addBuyPrice').value = a.buyPrice; document.getElementById('addNote').value = a.note || ''; openModal('addModal');
+}
+
+document.getElementById('addForm').addEventListener('submit', function(e) {
+  e.preventDefault(); var editId = document.getElementById('editAccountId').value;
+  var data = { email: document.getElementById('addEmail').value.trim(), password: document.getElementById('addPassword').value.trim(), sellerName: document.getElementById('addSellerName').value.trim(), sellerPhone: document.getElementById('addSellerPhone').value.trim(), buyPrice: parseFloat(document.getElementById('addBuyPrice').value) || 0, note: document.getElementById('addNote').value.trim() };
+  if (!data.email || !data.sellerName || !data.sellerPhone) { showToast('Fill in all required fields', 'error'); return; }
+  if (editId) { var idx = STATE.accounts.findIndex(function(a) { return a.id === editId; }); if (idx !== -1) { Object.assign(STATE.accounts[idx], data); saveData(); showToast('Account updated', 'success'); } }
+  else { if (STATE.accounts.some(function(a) { return a.email.toLowerCase() === data.email.toLowerCase(); })) { showToast('Email already exists', 'error'); return; } STATE.accounts.push({ id: uid(), email: data.email, password: data.password, sellerName: data.sellerName, sellerPhone: data.sellerPhone, buyPrice: data.buyPrice, note: data.note, status: 'available', soldDate: null, buyerName: null, buyerPhone: null, buyerEmail: null, soldPrice: null, createdAt: new Date().toISOString() }); saveData(); showToast('Account added to inventory', 'success'); }
+  closeModal('addModal'); navigateTo(STATE.currentView);
+});
+
+function openSellModal(id) {
+  var a = STATE.accounts.find(function(x) { return x.id === id; }); if (!a || a.status !== 'available') return;
+  document.getElementById('sellAccountId').value = id; document.getElementById('sellAccountEmail').textContent = a.email;
+  document.getElementById('sellBuyPriceInfo').textContent = 'Purchase price: ' + fmt(a.buyPrice);
+  document.getElementById('sellBuyerName').value = ''; document.getElementById('sellBuyerPhone').value = '';
+  document.getElementById('sellBuyerEmail').value = ''; document.getElementById('sellPrice').value = '';
+  document.getElementById('sellProfitHint').classList.add('hidden');
+  document.getElementById('sellPrice').oninput = function() {
+    var sp = parseFloat(this.value) || 0, h = document.getElementById('sellProfitHint');
+    if (sp > 0) { var pr = sp - a.buyPrice; h.textContent = 'Estimated profit: ' + (pr >= 0 ? '+' : '') + fmt(pr); h.className = 'text-xs mt-1.5 ' + (pr >= 0 ? 'text-emerald-500' : 'text-red-500'); h.classList.remove('hidden'); } else h.classList.add('hidden');
+  };
+  openModal('sellModal');
+}
+
+document.getElementById('sellForm').addEventListener('submit', function(e) {
+  e.preventDefault(); var id = document.getElementById('sellAccountId').value;
+  var a = STATE.accounts.find(function(x) { return x.id === id; }); if (!a) return;
+  var bn = document.getElementById('sellBuyerName').value.trim(), bph = document.getElementById('sellBuyerPhone').value.trim();
+  var be = document.getElementById('sellBuyerEmail').value.trim(), sp = parseFloat(document.getElementById('sellPrice').value) || 0;
+  if (!bn || !bph || sp <= 0) { showToast('Fill in all required fields', 'error'); return; }
+  var now = new Date().toISOString();
+  a.status = 'sold'; a.soldDate = now; a.buyerName = bn; a.buyerPhone = bph; a.buyerEmail = be; a.soldPrice = sp;
+  STATE.transactions.push({ id: txnUid(), accountId: id, email: a.email, buyerName: bn, soldPrice: sp, buyPrice: a.buyPrice, profit: parseFloat((sp - a.buyPrice).toFixed(2)), timestamp: now });
+  saveData(); closeModal('sellModal'); showToast('Sold to ' + bn + ' for ' + fmt(sp), 'success');
+  document.getElementById('notifBadge').classList.remove('hidden'); navigateTo(STATE.currentView);
+});
+
+function showDetail(id) {
+  var a = STATE.accounts.find(function(x) { return x.id === id; }); if (!a) return;
+  var profit = a.status === 'sold' ? parseFloat(((a.soldPrice || 0) - a.buyPrice).toFixed(2)) : null;
+  var safePwd = (a.password || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+  var h = '<div class="space-y-4"><div class="text-center pb-4 border-b border-slate-200 dark:border-white/5">' +
+    '<div class="w-14 h-14 mx-auto rounded-2xl ' + (a.status === 'sold' ? 'bg-brand-500/10' : 'bg-emerald-500/10') + ' flex items-center justify-center mb-3"><i class="fas ' + (a.status === 'sold' ? 'fa-check text-brand-500' : 'fa-envelope text-emerald-500') + ' text-xl"></i></div>' +
+    '<p class="font-700 text-slate-900 dark:text-white text-sm">' + a.email + '</p>' +
+    '<span class="inline-flex items-center gap-1 mt-1.5 px-2.5 py-0.5 rounded-lg text-xs font-600 ' + (a.status === 'sold' ? 'badge-completed' : 'bg-emerald-500/10 text-emerald-500') + '">' + a.status.toUpperCase() + '</span></div><div class="space-y-3">' +
+    '<div class="flex justify-between items-center py-2 border-b border-slate-100 dark:border-white/5"><span class="text-xs font-600 text-slate-400 uppercase tracking-wider">Password</span><div class="flex items-center gap-2"><span class="text-sm font-mono text-slate-600 dark:text-slate-300" id="detailPwd">••••••••</span><button onclick="var el=document.getElementById(\'detailPwd\');el.textContent=el.textContent===\'••••••••\'?\'' + safePwd + '\':\'••••••••\'" class="text-slate-400 hover:text-brand-500 text-xs"><i class="fas fa-eye"></i></button></div></div>' +
+    '<div class="py-2 border-b border-slate-100 dark:border-white/5"><span class="text-xs font-600 text-slate-400 uppercase tracking-wider block mb-1">Seller</span><p class="text-sm font-600 text-slate-800 dark:text-white">' + a.sellerName + '</p><p class="text-xs text-slate-500">' + a.sellerPhone + '</p></div>' +
+    '<div class="flex justify-between items-center py-2 border-b border-slate-100 dark:border-white/5"><span class="text-xs font-600 text-slate-400 uppercase tracking-wider">Buy Price</span><span class="text-sm font-700 text-slate-800 dark:text-white">' + fmt(a.buyPrice) + '</span></div>';
+  if (a.note) h += '<div class="py-2 border-b border-slate-100 dark:border-white/5"><span class="text-xs font-600 text-slate-400 uppercase tracking-wider block mb-1">Note</span><p class="text-sm text-slate-600 dark:text-slate-300">' + a.note + '</p></div>';
+  if (a.status === 'sold') h += '<div class="py-2 border-b border-slate-100 dark:border-white/5"><span class="text-xs font-600 text-slate-400 uppercase tracking-wider block mb-1">Buyer</span><p class="text-sm font-600 text-slate-800 dark:text-white">' + a.buyerName + '</p><p class="text-xs text-slate-500">' + (a.buyerPhone || '') + (a.buyerEmail ? ' · ' + a.buyerEmail : '') + '</p></div>' +
+    '<div class="flex justify-between items-center py-2 border-b border-slate-100 dark:border-white/5"><span class="text-xs font-600 text-slate-400 uppercase tracking-wider">Sold Price</span><span class="text-sm font-700 text-slate-800 dark:text-white">' + fmt(a.soldPrice) + '</span></div>' +
+    '<div class="flex justify-between items-center py-2 border-b border-slate-100 dark:border-white/5"><span class="text-xs font-600 text-slate-400 uppercase tracking-wider">Profit</span><span class="text-sm font-700 ' + (profit >= 0 ? 'text-emerald-500' : 'text-red-500') + '">' + (profit >= 0 ? '+' : '') + fmt(profit) + '</span></div>' +
+    '<div class="flex justify-between items-center py-2 border-b border-slate-100 dark:border-white/5"><span class="text-xs font-600 text-slate-400 uppercase tracking-wider">Sold Date</span><span class="text-sm text-slate-500">' + fmtDateTime(a.soldDate) + '</span></div>';
+  h += '<div class="flex justify-between items-center py-2"><span class="text-xs font-600 text-slate-400 uppercase tracking-wider">Added</span><span class="text-sm text-slate-500">' + fmtDateTime(a.createdAt) + '</span></div></div></div>';
+  document.getElementById('detailContent').innerHTML = h; openModal('detailModal');
+}
+
+function confirmDelete(id) {
+  var a = STATE.accounts.find(function(x) { return x.id === id; }); if (!a) return;
+  document.getElementById('confirmMsg').textContent = 'Delete "' + a.email + '"?' + (a.status === 'sold' ? ' This removes the transaction too.' : '');
+  document.getElementById('confirmBtn').onclick = function() { deleteAccount(id); closeModal('confirmModal'); }; openModal('confirmModal');
+}
+function deleteAccount(id) { STATE.accounts = STATE.accounts.filter(function(a) { return a.id !== id; }); STATE.transactions = STATE.transactions.filter(function(t) { return t.accountId !== id; }); saveData(); showToast('Account deleted', 'warning'); navigateTo(STATE.currentView); }
+function togglePasswordVisibility(iid, btn) { var inp = document.getElementById(iid); var ic = btn.querySelector('i'); if (inp.type === 'password') { inp.type = 'text'; ic.className = 'fas fa-eye-slash text-xs'; } else { inp.type = 'password'; ic.className = 'fas fa-eye text-xs'; } }
+function handleGlobalSearch(q) { if (!q.trim()) return; if (STATE.currentView === 'inventory') { document.getElementById('invSearch').value = q; renderInventory(); } else if (STATE.currentView === 'sold') { document.getElementById('soldSearch').value = q; renderSold(); } else { navigateTo('inventory'); setTimeout(function() { document.getElementById('invSearch').value = q; renderInventory(); }, 50); } }
+
+function exportCSV(type) {
+  var csv = '', fn = '';
+  if (type === 'available') { csv = 'Gmail Address,Password,Seller Name,Seller Phone,Buy Price,Note,Status\n'; STATE.accounts.filter(function(a) { return a.status === 'available'; }).forEach(function(a) { csv += '"' + a.email + '","' + (a.password || '') + '","' + a.sellerName + '","' + a.sellerPhone + '","' + a.buyPrice + '","' + (a.note || '') + '","AVAILABLE"\n'; }); fn = 'rg_pos_inventory_' + today() + '.csv'; }
+  else if (type === 'sold') { csv = 'Order ID,Gmail Address,Buyer Name,Buyer Phone,Sold Price,Sold Date,Status\n'; var si = 0; STATE.accounts.filter(function(a) { return a.status === 'sold'; }).forEach(function(a) { csv += '"#ORD-' + (9000 - si++) + '","' + a.email + '","' + a.buyerName + '","' + (a.buyerPhone || '') + '","' + a.soldPrice + '","' + fmtDateTime(a.soldDate) + '","Completed"\n'; }); fn = 'rg_pos_sold_' + today() + '.csv'; }
+  else if (type === 'transactions') { csv = 'Txn ID,Gmail Address,Buyer Name,Sold Price,Buy Price,Profit,Timestamp\n'; STATE.transactions.forEach(function(t) { csv += '"' + t.id + '","' + t.email + '","' + t.buyerName + '","' + t.soldPrice + '","' + t.buyPrice + '","' + t.profit + '","' + fmtDateTime(t.timestamp) + '"\n'; }); fn = 'rg_pos_transactions_' + today() + '.csv'; }
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' }); var link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = fn; link.click(); URL.revokeObjectURL(link.href); showToast(fn + ' exported', 'success');
+}
+
+function destroyChart(id) { if (STATE.chartInstances[id]) { STATE.chartInstances[id].destroy(); delete STATE.chartInstances[id]; } }
+
+/* ===== LOGIN ===== */
+document.getElementById('loginForm').addEventListener('submit', function(e) {
+  e.preventDefault(); var u = document.getElementById('loginUser').value.trim(), p = document.getElementById('loginPass').value, er = document.getElementById('loginError');
+  if (!u || !p) { er.classList.remove('hidden'); er.querySelector('span').textContent = 'Enter username and password'; return; }
+  if (u === CREDENTIALS.username && p === CREDENTIALS.password) { STATE.isLoggedIn = true; enterApp(); }
+  else { er.classList.remove('hidden'); er.querySelector('span').textContent = 'Invalid username or password'; er.classList.add('anim-shake'); setTimeout(function() { er.classList.remove('anim-shake'); }, 400); }
+});
+
+function enterApp() {
+  document.getElementById('loginScreen').classList.add('hidden'); document.getElementById('mainApp').classList.remove('hidden');
+  document.getElementById('headerName').textContent = 'Admin'; document.getElementById('headerAvatar').textContent = 'A'; navigateTo('dashboard');
+}
+
+function logout() {
+  STATE.isLoggedIn = false; document.getElementById('mainApp').classList.add('hidden'); document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('loginForm').reset(); document.getElementById('loginError').classList.add('hidden'); showToast('Logged out', 'info');
+}
+
+document.addEventListener('keydown', function(e) {
+  if (!STATE.isLoggedIn) return;
+  if (e.key === 'Escape') { ['confirmModal', 'detailModal', 'sellModal', 'addModal'].forEach(function(id) { var m = document.getElementById(id); if (!m.classList.contains('hidden')) closeModal(id); }); }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); document.getElementById('globalSearch').focus(); }
+});
+
+loadData(); applyTheme();
+</script>
+</body>
+</html>
